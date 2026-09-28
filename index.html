@@ -2,12 +2,378 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="public/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ImageTools - Otimização, Conversão e Redimensionamento de Imagens</title>
+    <!-- Tailwind CSS v3 via CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              zinc: {
+                50: '#fafafa',
+                100: '#f4f4f5',
+                200: '#e4e4e7',
+                300: '#d4d4d8',
+                400: '#a1a1aa',
+                500: '#71717a',
+                600: '#52525b',
+                700: '#3f3f46',
+                800: '#27272a',
+                900: '#18181b',
+                950: '#09090b',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <!-- JSZip for zip downloads -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="css/style.css" />
   </head>
   <body class="bg-slate-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 min-h-screen transition-colors duration-200">
-    <div id="root"></div>
-    <script type="module" src="./src/main.tsx"></script>
+    <div id="app" class="min-h-screen flex flex-col">
+      <!-- Header -->
+      <header class="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-40 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <!-- Logo -->
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <h1 class="font-bold text-lg leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">ImageTools</h1>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Otimizador Web Local</p>
+            </div>
+          </div>
+
+          <!-- Header Actions -->
+          <div class="flex items-center gap-2">
+            <button id="themeToggleBtn" title="Alternar tema" class="p-2.5 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <!-- Sun Icon (shown in dark mode) -->
+              <svg id="sunIcon" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+              </svg>
+              <!-- Moon Icon (shown in light mode) -->
+              <svg id="moonIcon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+              </svg>
+            </button>
+
+            <button id="settingsBtn" title="Configurações" class="p-2.5 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        <!-- Empty State / Landing Dropzone -->
+        <div id="emptyState" class="max-w-3xl mx-auto space-y-6 pt-6">
+          <div class="text-center space-y-2">
+            <h2 class="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
+              Otimize, Redimensione e Converta
+            </h2>
+            <p class="text-zinc-600 dark:text-zinc-400 text-base max-w-xl mx-auto">
+              Ferramenta rápida e 100% segura. Suas imagens nunca saem do seu navegador (processamento Web Canvas local).
+            </p>
+          </div>
+
+          <!-- Big Dropzone Container -->
+          <div id="mainDropzone" class="border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-blue-500 dark:hover:border-blue-500 bg-white dark:bg-zinc-900 rounded-3xl p-10 text-center cursor-pointer transition-all duration-200 group shadow-xs">
+            <input type="file" id="mainFileInput" multiple accept="image/png, image/jpeg, image/webp" class="hidden" />
+            <div class="flex flex-col items-center justify-center space-y-4">
+              <div class="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+              </div>
+              <div class="space-y-1">
+                <p class="text-base font-semibold text-zinc-800 dark:text-zinc-200">
+                  Arraste suas imagens aqui ou <span class="text-blue-600 dark:text-blue-400 underline decoration-2">clique para selecionar</span>
+                </p>
+                <p class="text-xs text-zinc-400 dark:text-zinc-500">Suporta JPG, PNG e WebP</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feature Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6">
+            <div class="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-1">
+              <p class="font-semibold text-sm text-zinc-900 dark:text-zinc-100">🔥 Alta Compressão</p>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                Reduza até 80% do tamanho das suas imagens preservando a qualidade visual.
+              </p>
+            </div>
+            <div class="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-1">
+              <p class="font-semibold text-sm text-zinc-900 dark:text-zinc-100">🔄 Conversão WebP</p>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                Converta JPG/PNG para WebP para obter carregamento ultrarrápido na Web.
+              </p>
+            </div>
+            <div class="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-1">
+              <p class="font-semibold text-sm text-zinc-900 dark:text-zinc-100">📐 Redimensionamento</p>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                Ajuste dimensões por porcentagem ou pixels fixos mantendo a proporção de aspecto.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Workspace (When Images Exist) -->
+        <div id="workspace" class="space-y-6 hidden">
+          <!-- Top Toolbar -->
+          <div class="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div id="imageCountBadge" class="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-xl font-bold text-sm">
+                0 imagens
+              </div>
+              <div id="savingsBadge" class="hidden text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-1.5 rounded-xl border border-emerald-200/50 dark:border-emerald-800/50">
+                Redução total de 0%
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button id="clearAllBtn" class="py-2 px-3 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                Limpar tudo
+              </button>
+
+              <button id="downloadZipBtn" class="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Baixar todas (.ZIP)
+              </button>
+            </div>
+          </div>
+
+          <!-- Grid Split -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left Side: Image List & Compare Slider (7 cols) -->
+            <div class="lg:col-span-7 space-y-6">
+              <!-- Compare Slider Container -->
+              <div id="compareContainer" class="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-3 hidden">
+                <div class="flex items-center justify-between text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                  <span>Comparador Antes vs Depois</span>
+                  <span class="font-mono text-zinc-400">Arraste para comparar</span>
+                </div>
+
+                <div id="compareSlider" class="relative w-full h-80 overflow-hidden rounded-xl bg-zinc-950 select-none cursor-ew-resize">
+                  <!-- Processed Image (After - Full background) -->
+                  <img id="afterImg" class="absolute inset-0 w-full h-full object-contain pointer-events-none" />
+
+                  <!-- Original Image Container (Before - Clipped) -->
+                  <div id="beforeImgWrapper" class="absolute inset-0 overflow-hidden" style="width: 50%;">
+                    <img id="beforeImg" class="absolute inset-0 max-w-none object-contain pointer-events-none" />
+                  </div>
+
+                  <!-- Slider Handle Line -->
+                  <div id="sliderHandle" class="absolute top-0 bottom-0 w-1 bg-white shadow-lg pointer-events-none" style="left: 50%;">
+                    <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white text-zinc-800 shadow-md flex items-center justify-center text-xs font-bold">
+                      ↔
+                    </div>
+                  </div>
+
+                  <!-- Labels -->
+                  <span class="absolute top-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-xs text-white text-xs font-semibold rounded-md pointer-events-none">Antes</span>
+                  <span class="absolute top-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-xs text-white text-xs font-semibold rounded-md pointer-events-none">Depois</span>
+                </div>
+              </div>
+
+              <!-- List of images -->
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Fila de Imagens
+                  </h3>
+                </div>
+
+                <div id="imageList" class="space-y-3"></div>
+
+                <!-- Compact Dropzone Button -->
+                <div id="compactDropzone" class="border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-blue-500 dark:hover:border-blue-500 bg-white/50 dark:bg-zinc-900/50 rounded-2xl p-4 text-center cursor-pointer transition-all">
+                  <input type="file" id="compactFileInput" multiple accept="image/png, image/jpeg, image/webp" class="hidden" />
+                  <p class="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    + Adicionar mais imagens
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Side: Options & Controls Panel (5 cols) -->
+            <div class="lg:col-span-5">
+              <div class="sticky top-24">
+                <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-xs space-y-6">
+                  <div class="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-800">
+                    <h3 class="font-bold text-base text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                      <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                      </svg>
+                      Opções de Otimização
+                    </h3>
+                  </div>
+
+                  <!-- Format Select -->
+                  <div class="space-y-2">
+                    <label class="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Formato de Saída</label>
+                    <div class="grid grid-cols-3 gap-2">
+                      <button type="button" data-format="image/jpeg" class="format-btn py-2 px-3 text-xs font-semibold rounded-xl border border-blue-500 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">JPG</button>
+                      <button type="button" data-format="image/png" class="format-btn py-2 px-3 text-xs font-semibold rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">PNG</button>
+                      <button type="button" data-format="image/webp" class="format-btn py-2 px-3 text-xs font-semibold rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">WebP</button>
+                    </div>
+                  </div>
+
+                  <!-- Quality Slider -->
+                  <div id="qualitySection" class="space-y-2">
+                    <div class="flex justify-between text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+                      <span>Qualidade da Compressão</span>
+                      <span id="qualityValue" class="font-mono text-blue-600 dark:text-blue-400">85%</span>
+                    </div>
+                    <input type="range" id="qualityInput" min="10" max="100" value="85" class="w-full accent-blue-600" />
+                  </div>
+
+                  <!-- Resize Options -->
+                  <div class="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
+                    <label class="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Redimensionar</label>
+
+                    <select id="resizeModeSelect" class="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                      <option value="none">Manter tamanho original</option>
+                      <option value="percentage">Porcentagem (%)</option>
+                      <option value="dimensions">Dimensões exatas (px)</option>
+                    </select>
+
+                    <!-- Percentage Input -->
+                    <div id="percentageControl" class="hidden space-y-1">
+                      <div class="flex justify-between text-xs text-zinc-500">
+                        <span>Escala</span>
+                        <span id="scaleValue" class="font-mono">100%</span>
+                      </div>
+                      <input type="range" id="scaleInput" min="10" max="200" value="100" class="w-full accent-blue-600" />
+                    </div>
+
+                    <!-- Custom Dimensions Input -->
+                    <div id="dimensionsControl" class="hidden space-y-3">
+                      <div class="grid grid-cols-2 gap-3">
+                        <div>
+                          <label class="text-[11px] text-zinc-500">Largura (px)</label>
+                          <input type="number" id="targetWidthInput" placeholder="Auto" class="w-full p-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200" />
+                        </div>
+                        <div>
+                          <label class="text-[11px] text-zinc-500">Altura (px)</label>
+                          <input type="number" id="targetHeightInput" placeholder="Auto" class="w-full p-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200" />
+                        </div>
+                      </div>
+                      <label class="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer">
+                        <input type="checkbox" id="maintainAspectCheckbox" checked class="rounded border-zinc-300 text-blue-600" />
+                        Manter proporção de aspecto
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Transform Section -->
+                  <div class="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
+                    <label class="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Transformar</label>
+                    <div class="flex items-center gap-2">
+                      <button type="button" id="rotateBtn" class="flex-1 py-2 px-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors">
+                        🔄 Girar 90°
+                      </button>
+                      <button type="button" id="flipHBtn" class="py-2 px-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-xl text-xs font-medium transition-colors">
+                        ↔
+                      </button>
+                      <button type="button" id="flipVBtn" class="py-2 px-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-xl text-xs font-medium transition-colors">
+                        ↕
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Action Buttons -->
+                  <div class="pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+                    <button id="applyToAllBtn" class="w-full py-2.5 px-4 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold rounded-xl transition-colors">
+                      Aplicar estas configurações a todas as imagens
+                    </button>
+                    <button id="processAllBtn" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2">
+                      Processar Todas as Imagens
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Footer -->
+      <footer class="border-t border-zinc-200 dark:border-zinc-800 py-6 text-center text-xs text-zinc-500 dark:text-zinc-400 transition-colors">
+        <p>ImageTools — Processamento local, limpo e seguro no seu navegador com suporte a JPG, PNG e WEBP.</p>
+      </footer>
+
+      <!-- Settings Modal -->
+      <div id="settingsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 hidden">
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 space-y-6">
+          <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
+            <h3 class="font-bold text-lg text-zinc-900 dark:text-zinc-100">Configurações Padrão</h3>
+            <button id="closeSettingsModalBtn" class="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+              ✕
+            </button>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Formato Padrão</label>
+              <select id="settingDefaultFormat" class="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                <option value="image/jpeg">JPG / JPEG</option>
+                <option value="image/png">PNG</option>
+                <option value="image/webp">WebP</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Qualidade Padrão (%)</label>
+              <input type="number" id="settingDefaultQuality" min="10" max="100" class="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Prefixo do Nome do Arquivo</label>
+              <input type="text" id="settingPrefix" placeholder="Ex: minified_" class="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">Sufixo do Nome do Arquivo</label>
+              <input type="text" id="settingSuffix" placeholder="Ex: _otimizada" class="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200" />
+            </div>
+
+            <label class="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer pt-2">
+              <input type="checkbox" id="settingAutoProcess" class="rounded border-zinc-300 text-blue-600" />
+              Processar automaticamente ao carregar imagem
+            </label>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+            <button id="cancelSettingsBtn" class="py-2 px-4 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
+              Cancelar
+            </button>
+            <button id="saveSettingsBtn" class="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-all">
+              Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Application Script -->
+    <script type="module" src="js/app.js"></script>
   </body>
 </html>

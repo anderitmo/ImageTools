@@ -1,0 +1,10 @@
+/* Custom supplementary styles if needed */
+.format-btn.active {
+  border-color: #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  color: #3b82f6 !important;
+}
+
+input[type="range"] {
+  cursor: pointer;
+}
