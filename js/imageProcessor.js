@@ -1,7 +1,6 @@
-import { ImageFormat, ImageProcessingOptions, WatermarkConfig, FilterOption } from '../types/image';
-import JSZip from 'jszip';
+// Core Image Processor for Vanilla JS using HTML Canvas and JSZip
 
-export function formatBytes(bytes: number, decimals = 2): string {
+export function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
@@ -10,7 +9,7 @@ export function formatBytes(bytes: number, decimals = 2): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-export function formatToExtension(format: ImageFormat): string {
+export function formatToExtension(format) {
   switch (format) {
     case 'image/jpeg':
       return 'jpg';
@@ -23,7 +22,7 @@ export function formatToExtension(format: ImageFormat): string {
   }
 }
 
-export function formatToLabel(format: ImageFormat): string {
+export function formatToLabel(format) {
   switch (format) {
     case 'image/jpeg':
       return 'JPG / JPEG';
@@ -36,41 +35,40 @@ export function formatToLabel(format: ImageFormat): string {
   }
 }
 
-export function calculateNewDimensions(
-  origWidth: number,
-  origHeight: number,
-  options: ImageProcessingOptions
-): { width: number; height: number } {
+export function calculateNewDimensions(origWidth, origHeight, options) {
   const { resizeMode, scalePercentage, targetWidth, targetHeight, maintainAspectRatio, aspectRatio } = options;
 
   let width = origWidth;
   let height = origHeight;
 
   if (resizeMode === 'percentage') {
-    const scale = Math.max(1, scalePercentage) / 100;
+    const scale = Math.max(1, scalePercentage || 100) / 100;
     width = Math.round(origWidth * scale);
     height = Math.round(origHeight * scale);
   } else if (resizeMode === 'dimensions') {
-    if (targetWidth && targetHeight) {
+    const tw = targetWidth ? parseInt(targetWidth, 10) : null;
+    const th = targetHeight ? parseInt(targetHeight, 10) : null;
+
+    if (tw && th) {
       if (maintainAspectRatio) {
         const ratio = origWidth / origHeight;
-        if (targetWidth / targetHeight > ratio) {
-          height = targetHeight;
-          width = Math.round(targetHeight * ratio);
+        if (tw / th > ratio) {
+          height = th;
+          width = Math.round(th * ratio);
         } else {
-          width = targetWidth;
-          height = Math.round(targetWidth / ratio);
+          width = tw;
+          height = Math.round(tw / ratio);
         }
       } else {
-        width = targetWidth;
-        height = targetHeight;
+        width = tw;
+        height = th;
       }
-    } else if (targetWidth) {
-      width = targetWidth;
-      height = maintainAspectRatio ? Math.round(targetWidth / (origWidth / origHeight)) : origHeight;
-    } else if (targetHeight) {
-      height = targetHeight;
-      width = maintainAspectRatio ? Math.round(targetHeight * (origWidth / origHeight)) : origWidth;
+    } else if (tw) {
+      width = tw;
+      height = maintainAspectRatio ? Math.round(tw / (origWidth / origHeight)) : origHeight;
+    } else if (th) {
+      height = th;
+      width = maintainAspectRatio ? Math.round(th * (origWidth / origHeight)) : origWidth;
     }
   } else if (resizeMode === 'preset') {
     let targetRatio = origWidth / origHeight;
@@ -89,12 +87,12 @@ export function calculateNewDimensions(
   };
 }
 
-export function loadImage(src: string | Blob | File): Promise<HTMLImageElement> {
+export function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
 
-    let objectUrl: string | null = null;
+    let objectUrl = null;
     if (typeof src === 'string') {
       img.src = src;
     } else {
@@ -114,7 +112,7 @@ export function loadImage(src: string | Blob | File): Promise<HTMLImageElement> 
   });
 }
 
-export async function getImageMetadata(file: File): Promise<{ width: number; height: number; previewUrl: string }> {
+export async function getImageMetadata(file) {
   const previewUrl = URL.createObjectURL(file);
   const img = await loadImage(previewUrl);
   return {
@@ -124,7 +122,7 @@ export async function getImageMetadata(file: File): Promise<{ width: number; hei
   };
 }
 
-export function applyCanvasFilter(ctx: CanvasRenderingContext2D, filter: FilterOption) {
+export function applyCanvasFilter(ctx, filter) {
   switch (filter) {
     case 'grayscale':
       ctx.filter = 'grayscale(100%)';
@@ -150,19 +148,14 @@ export function applyCanvasFilter(ctx: CanvasRenderingContext2D, filter: FilterO
   }
 }
 
-export function drawWatermark(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  watermark: WatermarkConfig
-) {
-  if (!watermark.text.trim()) return;
+export function drawWatermark(ctx, width, height, watermark) {
+  if (!watermark || !watermark.text || !watermark.text.trim()) return;
 
   ctx.save();
-  ctx.globalAlpha = watermark.opacity;
+  ctx.globalAlpha = watermark.opacity !== undefined ? watermark.opacity : 0.7;
   ctx.fillStyle = watermark.color || '#ffffff';
 
-  const fontSize = Math.max(12, Math.round((width / 800) * watermark.fontSize));
+  const fontSize = Math.max(12, Math.round((width / 800) * (watermark.fontSize || 32)));
   ctx.font = `bold ${fontSize}px sans-serif`;
 
   const textMetrics = ctx.measureText(watermark.text);
@@ -195,7 +188,6 @@ export function drawWatermark(
       break;
   }
 
-  // Draw slight text shadow for better readability
   ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
   ctx.shadowBlur = 4;
   ctx.shadowOffsetX = 2;
@@ -205,11 +197,8 @@ export function drawWatermark(
   ctx.restore();
 }
 
-export async function processImage(
-  source: HTMLImageElement | File | Blob | string,
-  options: ImageProcessingOptions
-): Promise<{ blob: Blob; url: string; width: number; height: number; size: number }> {
-  let img: HTMLImageElement;
+export async function processImage(source, options) {
+  let img;
   if (typeof source === 'string' || source instanceof File || source instanceof Blob) {
     img = await loadImage(source);
   } else {
@@ -219,10 +208,8 @@ export async function processImage(
   const origWidth = img.naturalWidth || img.width;
   const origHeight = img.naturalHeight || img.height;
 
-  // Calculate target dimensions
   let { width: targetWidth, height: targetHeight } = calculateNewDimensions(origWidth, origHeight, options);
 
-  // Apply cropping if configured
   let cropX = 0;
   let cropY = 0;
   let cropW = origWidth;
@@ -234,7 +221,6 @@ export async function processImage(
     cropW = Math.round((options.crop.width / 100) * origWidth);
     cropH = Math.round((options.crop.height / 100) * origHeight);
 
-    // Adjust target dimensions if crop is active and no explicit dimension set
     if (options.resizeMode === 'none') {
       targetWidth = cropW;
       targetHeight = cropH;
@@ -247,15 +233,14 @@ export async function processImage(
     throw new Error('Não foi possível inicializar o contexto 2D do Canvas.');
   }
 
-  // Handle rotation orientation (90 or 270 flips width and height)
-  const isRotated = options.rotation === 90 || options.rotation === 270;
+  const rotation = options.rotation || 0;
+  const isRotated = rotation === 90 || rotation === 270;
   const canvasWidth = isRotated ? targetHeight : targetWidth;
   const canvasHeight = isRotated ? targetWidth : targetHeight;
 
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
 
-  // Background for PNG -> JPG transparency fill (JPEG doesn't support transparency)
   if (options.format === 'image/jpeg') {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -263,21 +248,18 @@ export async function processImage(
 
   ctx.save();
 
-  // Move origin to center for rotation and flip transformation
   ctx.translate(canvasWidth / 2, canvasHeight / 2);
 
-  if (options.rotation !== 0) {
-    ctx.rotate((options.rotation * Math.PI) / 180);
+  if (rotation !== 0) {
+    ctx.rotate((rotation * Math.PI) / 180);
   }
 
   const scaleX = options.flipH ? -1 : 1;
   const scaleY = options.flipV ? -1 : 1;
   ctx.scale(scaleX, scaleY);
 
-  // Apply visual filters
-  applyCanvasFilter(ctx, options.filter);
+  applyCanvasFilter(ctx, options.filter || 'none');
 
-  // Draw source image onto transformed canvas
   ctx.drawImage(
     img,
     cropX,
@@ -292,12 +274,10 @@ export async function processImage(
 
   ctx.restore();
 
-  // Draw watermark if configured
   if (options.watermark) {
     drawWatermark(ctx, canvasWidth, canvasHeight, options.watermark);
   }
 
-  // Export to Blob
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
@@ -314,15 +294,16 @@ export async function processImage(
           size: blob.size,
         });
       },
-      options.format,
-      options.quality
+      options.format || 'image/jpeg',
+      options.quality !== undefined ? options.quality : 0.85
     );
   });
 }
 
-export async function createBatchZip(
-  items: { blob: Blob; fileName: string }[]
-): Promise<Blob> {
+export async function createBatchZip(items) {
+  if (typeof JSZip === 'undefined') {
+    throw new Error('JSZip library não está carregada.');
+  }
   const zip = new JSZip();
   items.forEach((item) => {
     zip.file(item.fileName, item.blob);
