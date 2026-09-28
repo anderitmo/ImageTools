@@ -1,0 +1,11 @@
+
+> imagetools@1.0.0 dev
+> vite --host 127.0.0.1 --port 5173
+
+
+  VITE v8.3.1  ready in 379 ms
+
+  ➜  Local:   http://127.0.0.1:5173/
+5:16:03 PM [vite] (client) [optimizer] bundling dependencies...
+5:17:37 PM [vite] (client) hmr update /src/index.css
+5:19:01 PM [vite] (client) hmr update /src/App.tsx, /src/index.css
