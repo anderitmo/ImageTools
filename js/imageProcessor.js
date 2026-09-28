@@ -1,4 +1,4 @@
-// Core Image Processor for Vanilla JS using HTML Canvas and JSZip
+// Core Image Processor for Vanilla JS using HTML Canvas, JSZip, and piexifjs
 
 export function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
@@ -197,6 +197,35 @@ export function drawWatermark(ctx, width, height, watermark) {
   ctx.restore();
 }
 
+// Convert decimal degree coordinate into piexif GPS Rational tuple format: [[deg, 1], [min, 1], [sec, 100]]
+function degToExifRational(deg) {
+  const absolute = Math.abs(deg);
+  const degrees = Math.floor(absolute);
+  const minutesNotTruncated = (absolute - degrees) * 60;
+  const minutes = Math.floor(minutesNotTruncated);
+  const seconds = Math.round((minutesNotTruncated - minutes) * 60 * 100);
+
+  return [
+    [degrees, 1],
+    [minutes, 1],
+    [seconds, 100],
+  ];
+}
+
+// Helper to convert dataURL to Blob
+function dataURLtoBlob(dataurl) {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+}
+
+// Process Image with Canvas and apply/strip EXIF metadata
 export async function processImage(source, options) {
   let img;
   if (typeof source === 'string' || source instanceof File || source instanceof Blob) {
@@ -278,13 +307,50 @@ export async function processImage(source, options) {
     drawWatermark(ctx, canvasWidth, canvasHeight, options.watermark);
   }
 
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error('Erro ao gerar blob da imagem.'));
-          return;
+  const format = options.format || 'image/jpeg';
+  const quality = options.quality !== undefined ? options.quality : 0.85;
+
+  return new Promise((resolve) => {
+    const dataUrl = canvas.toDataURL(format, quality);
+
+    // Apply or strip EXIF metadata if piexif is loaded and output format is JPEG
+    if (format === 'image/jpeg' && typeof piexif !== 'undefined') {
+      try {
+        let finalDataUrl = dataUrl;
+
+        if (options.stripExif) {
+          // Explicitly strip EXIF data
+          finalDataUrl = piexif.remove(dataUrl);
+        } else if (options.exif) {
+          // Insert/Update EXIF & GPS metadata
+          const exifObj = { '0th': {}, 'Exif': {}, 'GPS': {} };
+
+          if (options.exif.artist) {
+            exifObj['0th'][piexif.ImageIFD.Artist] = options.exif.artist;
+          }
+          if (options.exif.copyright) {
+            exifObj['0th'][piexif.ImageIFD.Copyright] = options.exif.copyright;
+          }
+          if (options.exif.description) {
+            exifObj['0th'][piexif.ImageIFD.ImageDescription] = options.exif.description;
+          }
+
+          // Handle GPS Location for SEO
+          const lat = parseFloat(options.exif.lat);
+          const lng = parseFloat(options.exif.lng);
+
+          if (!isNaN(lat) && !isNaN(lng)) {
+            exifObj['GPS'][piexif.GPSIFD.GPSLatitudeRef] = lat >= 0 ? 'N' : 'S';
+            exifObj['GPS'][piexif.GPSIFD.GPSLatitude] = degToExifRational(lat);
+            exifObj['GPS'][piexif.GPSIFD.GPSLongitudeRef] = lng >= 0 ? 'E' : 'W';
+            exifObj['GPS'][piexif.GPSIFD.GPSLongitude] = degToExifRational(lng);
+          }
+
+          const exifBytes = piexif.dump(exifObj);
+          finalDataUrl = piexif.insert(exifBytes, dataUrl);
         }
+
+        const blob = dataURLtoBlob(finalDataUrl);
         const url = URL.createObjectURL(blob);
         resolve({
           blob,
@@ -293,10 +359,21 @@ export async function processImage(source, options) {
           height: canvasHeight,
           size: blob.size,
         });
-      },
-      options.format || 'image/jpeg',
-      options.quality !== undefined ? options.quality : 0.85
-    );
+        return;
+      } catch (exifErr) {
+        console.warn('Exif insertion error, falling back to standard canvas blob:', exifErr);
+      }
+    }
+
+    const blob = dataURLtoBlob(dataUrl);
+    const url = URL.createObjectURL(blob);
+    resolve({
+      blob,
+      url,
+      width: canvasWidth,
+      height: canvasHeight,
+      size: blob.size,
+    });
   });
 }
 
