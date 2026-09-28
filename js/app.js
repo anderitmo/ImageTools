@@ -12,6 +12,7 @@ import {
   createBatchZip,
   formatBytes,
   formatToExtension,
+  calculateNewDimensions,
 } from './imageProcessor.js';
 
 // Application State
@@ -29,6 +30,14 @@ let globalOptions = {
   flipH: false,
   flipV: false,
   filter: 'none',
+  stripExif: false,
+  exif: {
+    lat: '',
+    lng: '',
+    artist: '',
+    copyright: '',
+    description: '',
+  },
 };
 
 // DOM Element References
@@ -72,7 +81,9 @@ const formatBtns = document.querySelectorAll('.format-btn');
 const qualitySection = document.getElementById('qualitySection');
 const qualityInput = document.getElementById('qualityInput');
 const qualityValue = document.getElementById('qualityValue');
+
 const resizeModeSelect = document.getElementById('resizeModeSelect');
+const calculatedDimensionPreview = document.getElementById('calculatedDimensionPreview');
 const percentageControl = document.getElementById('percentageControl');
 const scaleInput = document.getElementById('scaleInput');
 const scaleValue = document.getElementById('scaleValue');
@@ -80,9 +91,20 @@ const dimensionsControl = document.getElementById('dimensionsControl');
 const targetWidthInput = document.getElementById('targetWidthInput');
 const targetHeightInput = document.getElementById('targetHeightInput');
 const maintainAspectCheckbox = document.getElementById('maintainAspectCheckbox');
+
 const rotateBtn = document.getElementById('rotateBtn');
 const flipHBtn = document.getElementById('flipHBtn');
 const flipVBtn = document.getElementById('flipVBtn');
+
+// EXIF / GPS elements
+const stripExifCheckbox = document.getElementById('stripExifCheckbox');
+const exifEditorContainer = document.getElementById('exifEditorContainer');
+const exifLatInput = document.getElementById('exifLatInput');
+const exifLngInput = document.getElementById('exifLngInput');
+const exifArtistInput = document.getElementById('exifArtistInput');
+const exifCopyrightInput = document.getElementById('exifCopyrightInput');
+const exifDescriptionInput = document.getElementById('exifDescriptionInput');
+
 const applyToAllBtn = document.getElementById('applyToAllBtn');
 const processAllBtn = document.getElementById('processAllBtn');
 
@@ -153,21 +175,25 @@ function setupEventListeners() {
     const val = parseInt(e.target.value, 10);
     globalOptions.scalePercentage = val;
     scaleValue.textContent = `${val}%`;
+    updateControlsUI();
     triggerAutoReprocessSelected();
   });
 
   targetWidthInput.addEventListener('input', (e) => {
     globalOptions.targetWidth = e.target.value ? parseInt(e.target.value, 10) : null;
+    updateControlsUI();
     triggerAutoReprocessSelected();
   });
 
   targetHeightInput.addEventListener('input', (e) => {
     globalOptions.targetHeight = e.target.value ? parseInt(e.target.value, 10) : null;
+    updateControlsUI();
     triggerAutoReprocessSelected();
   });
 
   maintainAspectCheckbox.addEventListener('change', (e) => {
     globalOptions.maintainAspectRatio = e.target.checked;
+    updateControlsUI();
     triggerAutoReprocessSelected();
   });
 
@@ -185,6 +211,26 @@ function setupEventListeners() {
     globalOptions.flipV = !globalOptions.flipV;
     triggerAutoReprocessSelected();
   });
+
+  // EXIF & GPS Event Listeners
+  stripExifCheckbox.addEventListener('change', (e) => {
+    globalOptions.stripExif = e.target.checked;
+    updateControlsUI();
+    triggerAutoReprocessSelected();
+  });
+
+  const bindExifInput = (inputElem, property) => {
+    inputElem.addEventListener('input', (e) => {
+      globalOptions.exif[property] = e.target.value;
+      triggerAutoReprocessSelected();
+    });
+  };
+
+  bindExifInput(exifLatInput, 'lat');
+  bindExifInput(exifLngInput, 'lng');
+  bindExifInput(exifArtistInput, 'artist');
+  bindExifInput(exifCopyrightInput, 'copyright');
+  bindExifInput(exifDescriptionInput, 'description');
 
   applyToAllBtn.addEventListener('click', handleApplyToAll);
   processAllBtn.addEventListener('click', handleProcessAll);
@@ -319,6 +365,7 @@ async function handleFilesSelected(fileList) {
   }
 
   renderApp();
+  updateControlsUI();
 
   if (appSettings.autoProcess) {
     for (const item of newItems) {
@@ -344,7 +391,7 @@ async function processSingleItem(itemToProcess, optionsToUse) {
             processedWidth: result.width,
             processedHeight: result.height,
             processedSize: result.size,
-            customOptions: { ...optionsToUse },
+            customOptions: JSON.parse(JSON.stringify(optionsToUse)),
           }
         : i
     );
@@ -361,6 +408,7 @@ async function processSingleItem(itemToProcess, optionsToUse) {
   }
 
   renderApp();
+  updateControlsUI();
 }
 
 function triggerAutoReprocessSelected() {
@@ -485,6 +533,33 @@ function updateControlsUI() {
   targetWidthInput.value = globalOptions.targetWidth || '';
   targetHeightInput.value = globalOptions.targetHeight || '';
   maintainAspectCheckbox.checked = globalOptions.maintainAspectRatio !== false;
+
+  // Dynamic Output Pixel Dimensions Calculation Preview
+  const selectedItem = items.find((i) => i.id === selectedId) || items[0] || null;
+  if (selectedItem) {
+    const calculated = calculateNewDimensions(
+      selectedItem.originalWidth,
+      selectedItem.originalHeight,
+      globalOptions
+    );
+    calculatedDimensionPreview.textContent = `${calculated.width} x ${calculated.height} px`;
+  } else {
+    calculatedDimensionPreview.textContent = '-- x -- px';
+  }
+
+  // EXIF UI Controls
+  stripExifCheckbox.checked = globalOptions.stripExif;
+  if (globalOptions.stripExif) {
+    exifEditorContainer.classList.add('opacity-50', 'pointer-events-none');
+  } else {
+    exifEditorContainer.classList.remove('opacity-50', 'pointer-events-none');
+  }
+
+  exifLatInput.value = globalOptions.exif.lat || '';
+  exifLngInput.value = globalOptions.exif.lng || '';
+  exifArtistInput.value = globalOptions.exif.artist || '';
+  exifCopyrightInput.value = globalOptions.exif.copyright || '';
+  exifDescriptionInput.value = globalOptions.exif.description || '';
 }
 
 function renderApp() {
@@ -554,6 +629,7 @@ function renderApp() {
       if (e.target.closest('button')) return; // Ignore button clicks inside card
       selectedId = item.id;
       renderApp();
+      updateControlsUI();
     });
 
     // Calc size reduction for this card
@@ -580,7 +656,7 @@ function renderApp() {
             <span>${formatBytes(item.originalSize)}</span>
             ${
               item.status === 'done'
-                ? `<span>→</span> <span class="font-bold text-zinc-700 dark:text-zinc-300">${formatBytes(item.processedSize)}</span>`
+                ? `<span>→</span> <span class="font-bold text-zinc-700 dark:text-zinc-300">${item.processedWidth}x${item.processedHeight}px (${formatBytes(item.processedSize)})</span>`
                 : ''
             }
           </div>
@@ -620,6 +696,7 @@ function renderApp() {
           selectedId = items.length > 0 ? items[0].id : null;
         }
         renderApp();
+        updateControlsUI();
       });
     }
 

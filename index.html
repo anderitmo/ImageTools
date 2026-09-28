@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="public/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ImageTools - Otimização, Conversão e Redimensionamento de Imagens</title>
+    <title>ImageTools - Otimização, Conversão, EXIF e Redimensionamento de Imagens</title>
     <!-- Tailwind CSS v3 via CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -33,6 +33,8 @@
     </script>
     <!-- JSZip for zip downloads -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- piexifjs for reading and writing EXIF/GPS metadata -->
+    <script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.js"></script>
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body class="bg-slate-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 min-h-screen transition-colors duration-200">
@@ -49,7 +51,7 @@
             </div>
             <div>
               <h1 class="font-bold text-lg leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">ImageTools</h1>
-              <p class="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Otimizador Web Local</p>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Otimizador Web & Editor EXIF GPS Local</p>
             </div>
           </div>
 
@@ -82,10 +84,10 @@
         <div id="emptyState" class="max-w-3xl mx-auto space-y-6 pt-6">
           <div class="text-center space-y-2">
             <h2 class="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
-              Otimize, Redimensione e Converta
+              Otimize, Converta e Edite EXIF GPS
             </h2>
             <p class="text-zinc-600 dark:text-zinc-400 text-base max-w-xl mx-auto">
-              Ferramenta rápida e 100% segura. Suas imagens nunca saem do seu navegador (processamento Web Canvas local).
+              Ferramenta rápida e 100% segura. Suas imagens nunca saem do seu navegador (processamento Web Canvas e EXIF local).
             </p>
           </div>
 
@@ -112,19 +114,19 @@
             <div class="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-1">
               <p class="font-semibold text-sm text-zinc-900 dark:text-zinc-100">🔥 Alta Compressão</p>
               <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                Reduza até 80% do tamanho das suas imagens preservando a qualidade visual.
+                Reduza o tamanho mantendo a qualidade visual.
               </p>
             </div>
             <div class="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-1">
-              <p class="font-semibold text-sm text-zinc-900 dark:text-zinc-100">🔄 Conversão WebP</p>
+              <p class="font-semibold text-sm text-zinc-900 dark:text-zinc-100">📍 Editor EXIF & GPS</p>
               <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                Converta JPG/PNG para WebP para obter carregamento ultrarrápido na Web.
+                Adicione geolocalização (latitude/longitude) para rankeamento local no Google ou remova metadados por privacidade.
               </p>
             </div>
             <div class="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-1">
-              <p class="font-semibold text-sm text-zinc-900 dark:text-zinc-100">📐 Redimensionamento</p>
+              <p class="font-semibold text-sm text-zinc-900 dark:text-zinc-100">📐 Redimensionamento Preciso</p>
               <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                Ajuste dimensões por porcentagem ou pixels fixos mantendo a proporção de aspecto.
+                Veja o cálculo exato do tamanho resultante em pixels em tempo real.
               </p>
             </div>
           </div>
@@ -215,7 +217,8 @@
 
             <!-- Right Side: Options & Controls Panel (5 cols) -->
             <div class="lg:col-span-5">
-              <div class="sticky top-24">
+              <div class="sticky top-24 space-y-6">
+                <!-- Optimization Controls Panel -->
                 <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-xs space-y-6">
                   <div class="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-800">
                     <h3 class="font-bold text-base text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
@@ -247,8 +250,14 @@
 
                   <!-- Resize Options -->
                   <div class="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
-                    <label class="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Redimensionar</label>
-
+                    <div class="flex items-center justify-between">
+                      <label class="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Redimensionar</label>
+                      <!-- Dynamic Output Dimensions Calculation Preview -->
+                      <span id="calculatedDimensionPreview" class="text-xs font-bold font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-lg border border-blue-200 dark:border-blue-900">
+                        -- x -- px
+                      </span>
+                    </div>
+                    
                     <select id="resizeModeSelect" class="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-xs font-medium text-zinc-800 dark:text-zinc-200">
                       <option value="none">Manter tamanho original</option>
                       <option value="percentage">Porcentagem (%)</option>
@@ -259,7 +268,7 @@
                     <div id="percentageControl" class="hidden space-y-1">
                       <div class="flex justify-between text-xs text-zinc-500">
                         <span>Escala</span>
-                        <span id="scaleValue" class="font-mono">100%</span>
+                        <span id="scaleValue" class="font-mono font-bold text-zinc-800 dark:text-zinc-200">100%</span>
                       </div>
                       <input type="range" id="scaleInput" min="10" max="200" value="100" class="w-full accent-blue-600" />
                     </div>
@@ -299,6 +308,50 @@
                     </div>
                   </div>
 
+                  <!-- EXIF & GPS Section -->
+                  <div class="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800/80">
+                    <div class="flex items-center justify-between">
+                      <label class="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                        📍 Metadados EXIF & GPS (SEO)
+                      </label>
+                      <label class="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium cursor-pointer">
+                        <input type="checkbox" id="stripExifCheckbox" class="rounded border-zinc-300 text-rose-600" />
+                        Remover EXIF
+                      </label>
+                    </div>
+
+                    <div id="exifEditorContainer" class="space-y-3 bg-zinc-50 dark:bg-zinc-950 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                      <p class="text-[11px] text-zinc-500 dark:text-zinc-400">Adicione geolocalização para melhorar o SEO local no Google:</p>
+                      
+                      <div class="grid grid-cols-2 gap-2">
+                        <div>
+                          <label class="text-[10px] uppercase font-bold text-zinc-500">Latitude</label>
+                          <input type="text" id="exifLatInput" placeholder="Ex: -23.5505" class="w-full p-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200" />
+                        </div>
+                        <div>
+                          <label class="text-[10px] uppercase font-bold text-zinc-500">Longitude</label>
+                          <input type="text" id="exifLngInput" placeholder="Ex: -46.6333" class="w-full p-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200" />
+                        </div>
+                      </div>
+
+                      <div class="grid grid-cols-2 gap-2">
+                        <div>
+                          <label class="text-[10px] uppercase font-bold text-zinc-500">Autor / Artista</label>
+                          <input type="text" id="exifArtistInput" placeholder="Ex: Minha Empresa" class="w-full p-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200" />
+                        </div>
+                        <div>
+                          <label class="text-[10px] uppercase font-bold text-zinc-500">Copyright</label>
+                          <input type="text" id="exifCopyrightInput" placeholder="Ex: © 2025 Direitos" class="w-full p-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label class="text-[10px] uppercase font-bold text-zinc-500">Descrição / Título</label>
+                        <input type="text" id="exifDescriptionInput" placeholder="Ex: Foto otimizada para SEO local" class="w-full p-2 text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200" />
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Action Buttons -->
                   <div class="pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
                     <button id="applyToAllBtn" class="w-full py-2.5 px-4 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold rounded-xl transition-colors">
@@ -317,7 +370,7 @@
 
       <!-- Footer -->
       <footer class="border-t border-zinc-200 dark:border-zinc-800 py-6 text-center text-xs text-zinc-500 dark:text-zinc-400 transition-colors">
-        <p>ImageTools — Processamento local, limpo e seguro no seu navegador com suporte a JPG, PNG e WEBP.</p>
+        <p>ImageTools — Processamento local, limpo e seguro no seu navegador com suporte a JPG, PNG e WEBP e metadados EXIF/GPS.</p>
       </footer>
 
       <!-- Settings Modal -->
